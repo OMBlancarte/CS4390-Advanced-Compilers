@@ -1,6 +1,6 @@
 import json
 import sys
-from collections import OrderedDict
+from collections import OrderedDict, deque
 
 TERMINATORS = 'jmp', 'call', 'ret'
 
@@ -15,6 +15,22 @@ def get_path_lengths(cfg, entry):
     Returns:
         dict: {node: distance from entry}, unreachable nodes are omitted
     """
+    if entry not in cfg:
+        return {}
+    
+    distances = {entry: 0}
+    queue = deque([entry])
+
+    while queue:
+        current = queue.popleft()
+        current_dist = distances[current]
+
+        for succ in cfg[current]:
+            if succ not in distances:
+                distances[succ] = current_dist + 1
+                queue.append(succ)
+    
+    return distances
 
 def reverse_postorder(cfg, entry):
     """
@@ -119,6 +135,13 @@ def mycfg():
         cfg = get_cfg(name2block)
         # print(cfg)
 
+        entry = list(name2block.keys())[0]
+
+        # Test the implemented functions
+        print(f"Function: {func['name']}")
+        print(f"Path lengths: {get_path_lengths(cfg, entry)}")
+
+        # Original CFG visualization
         print('digraph {} {{'.format(func['name']))
         for name in name2block:
             print(' {};'.format(name))
