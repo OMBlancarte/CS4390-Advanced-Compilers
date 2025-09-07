@@ -25,10 +25,10 @@ def get_path_lengths(cfg, entry):
         current = queue.popleft()
         current_dist = distances[current]
 
-        for succ in cfg[current]:
-            if succ not in distances:
-                distances[succ] = current_dist + 1
-                queue.append(succ)
+        for successor in cfg[current]:
+            if successor not in distances:
+                distances[successor] = current_dist + 1
+                queue.append(successor)
     
     return distances
 
@@ -43,7 +43,24 @@ def reverse_postorder(cfg, entry):
     Returns:
         list: nodes in reverse postorder
     """
+    if entry not in cfg:
+        return []
+    
+    visited = set()
+    postorder = []
 
+    def dfs(node):
+        if node in visited:
+            return
+        visited.add(node)
+
+        for successor in cfg[node]:
+            dfs(successor)
+
+        postorder.append(node)
+    
+    dfs(entry)
+    return postorder[::-1]
 
 def find_back_edges(cfg, entry):
     """
@@ -140,6 +157,7 @@ def mycfg():
         # Test the implemented functions
         print(f"Function: {func['name']}")
         print(f"Path lengths: {get_path_lengths(cfg, entry)}")
+        print(f"Reverse postorder: {reverse_postorder(cfg, entry)}")
 
         # Original CFG visualization
         print('digraph {} {{'.format(func['name']))
