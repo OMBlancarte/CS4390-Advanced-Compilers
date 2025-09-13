@@ -73,6 +73,33 @@ def find_back_edges(cfg, entry):
     Returns: 
         list of edges (u,v) where u->v is a back edge
     """
+    if entry not in cfg:
+        return []
+    
+    # WHITE (not discoverd), GRAY (discovered), BLACK (finished)
+    WHITE = 0
+    GRAY = 1
+    BLACK = 2
+    colors = {node: WHITE for node in cfg}
+    back_edges = []
+
+    def dfs(node):
+        if colors[node] != WHITE:
+            return
+        
+        colors[node] = GRAY
+
+        for successor in cfg[node]:
+            if colors[successor] == GRAY:
+                # Found a back edge: node -> successor
+                back_edges.append((node, successor))
+            elif colors[successor] == WHITE:
+                dfs(successor)
+        colors[node] = BLACK
+    
+    dfs(entry)
+    return back_edges
+
 
 def is_reducible(cfg, entry):
     """
@@ -158,6 +185,7 @@ def mycfg():
         print(f"Function: {func['name']}")
         print(f"Path lengths: {get_path_lengths(cfg, entry)}")
         print(f"Reverse postorder: {reverse_postorder(cfg, entry)}")
+        print(f"Back edges: {find_back_edges(cfg, entry)}")
 
         # Original CFG visualization
         print('digraph {} {{'.format(func['name']))
