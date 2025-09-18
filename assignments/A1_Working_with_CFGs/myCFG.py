@@ -112,6 +112,42 @@ def is_reducible(cfg, entry):
     Returns:
         True if the CFG is reducible or False if the CFG is irreducible
     """
+    if entry not in cfg:
+        return True
+    
+    # Find back edges
+    back_edges = find_back_edges(cfg, entry)
+    back_edge_set = set(back_edges)
+    
+    # Create a new CFG without back edges
+    reduced_cfg = {}
+    for node, successors in cfg.items():
+        reduced_cfg[node] = []
+        for succ in successors:
+            if (node, succ) not in back_edge_set:
+                reduced_cfg[node].append(succ)
+    
+    # Check if the reduced CFG is acyclic using DFS
+    WHITE, GRAY, BLACK = 0, 1, 2
+    colors = {node: WHITE for node in reduced_cfg}
+    
+    def has_cycle(node):
+        if colors[node] == GRAY:
+            return True  # Found a cycle
+        if colors[node] == BLACK:
+            return False
+            
+        colors[node] = GRAY
+        
+        for successor in reduced_cfg[node]:
+            if has_cycle(successor):
+                return True
+        
+        colors[node] = BLACK
+        return False
+    
+    # Check for cycles starting from entry
+    return not has_cycle(entry)
 
 def form_blocks(body):
     cur_block  = []
@@ -186,6 +222,8 @@ def mycfg():
         print(f"Path lengths: {get_path_lengths(cfg, entry)}")
         print(f"Reverse postorder: {reverse_postorder(cfg, entry)}")
         print(f"Back edges: {find_back_edges(cfg, entry)}")
+        print(f"Is reducible: {is_reducible(cfg, entry)}")
+        print()
 
         # Original CFG visualization
         print('digraph {} {{'.format(func['name']))
