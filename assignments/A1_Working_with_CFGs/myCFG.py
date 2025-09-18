@@ -225,7 +225,7 @@ def mycfg():
         print(f"Is reducible: {is_reducible(cfg, entry)}")
         print()
 
-        # Original CFG visualization
+        # Original CFG visualization used for Graphviz
         print('digraph {} {{'.format(func['name']))
         for name in name2block:
             print(' {};'.format(name))
