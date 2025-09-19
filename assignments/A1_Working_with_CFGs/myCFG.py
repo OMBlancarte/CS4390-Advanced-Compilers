@@ -223,12 +223,12 @@ def mycfg():
         entry = list(name2block.keys())[0]
 
         # Test the implemented functions
-        # print(f"Function: {func['name']}")
-        # print(f"Path lengths: {get_path_lengths(cfg, entry)}")
-        # print(f"Reverse postorder: {reverse_postorder(cfg, entry)}")
-        # print(f"Back edges: {find_back_edges(cfg, entry)}")
-        # print(f"Is reducible: {is_reducible(cfg, entry)}")
-        # print()
+        print(f"Function: {func['name']}")
+        print(f"Path lengths: {get_path_lengths(cfg, entry)}")
+        print(f"Reverse postorder: {reverse_postorder(cfg, entry)}")
+        print(f"Back edges: {find_back_edges(cfg, entry)}")
+        print(f"Is reducible: {is_reducible(cfg, entry)}")
+        print()
 
         # Original CFG visualization used for Graphviz
         print('digraph {} {{'.format(func['name']))
