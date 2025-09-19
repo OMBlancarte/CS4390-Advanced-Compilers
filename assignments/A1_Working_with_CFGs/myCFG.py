@@ -115,7 +115,7 @@ def is_reducible(cfg, entry):
     if entry not in cfg:
         return True  # vacuously reducible
 
-    # 1) Limit to reachable nodes so dominators don't get confused
+    # Collect only nodes reachable from entry
     reachable = set(get_path_lengths(cfg, entry).keys())
     if not reachable:
         return True
@@ -129,7 +129,7 @@ def is_reducible(cfg, entry):
             if v in reachable:
                 preds[v].add(u)
 
-    # 2) Dominators via classic iterative dataflow, iterate in RPO for speed
+    # Compute dominators with iterative dataflow
     rpo = [n for n in reverse_postorder(cfg, entry) if n in reachable]
     dom = {n: ({n} if n == entry else set(reachable)) for n in reachable}
 
@@ -148,7 +148,7 @@ def is_reducible(cfg, entry):
                 dom[n] = new
                 changed = True
 
-    # 3) Reducible iff every back-edge target dominates its source
+    # Reducible iff every back-edge target dominates its source
     for (u, v) in find_back_edges(cfg, entry):
         if u in reachable and v in reachable and v not in dom[u]:
             return False
