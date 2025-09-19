@@ -1,0 +1,22 @@
+@main {
+  x: int = const 0;
+  y: int = const 1;
+  z: int = const 5;
+  takeJ: bool = const true;
+  br takeJ .J .H;
+
+.J:
+  x: int = add x y;
+  jmp .L;
+
+.H:
+  t: bool = lt x z;
+  br t .L .exit;
+
+.L:
+  x: int = add x y;
+  jmp .H;
+
+.exit:
+  ret;
+}
