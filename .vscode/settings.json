@@ -1,0 +1,6 @@
+{
+    "python.analysis.extraPaths": [
+        "./bril/bril-txt",
+        "./bril/examples"
+    ]
+}
