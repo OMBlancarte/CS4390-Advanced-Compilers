@@ -78,11 +78,17 @@ def fmt(val):
         return str(val)
 
 
-def run_df(bril, analysis):
+def run_df(bril, analysis_name):
     for func in bril["functions"]:
         # Form the CFG.
         blocks = cfg.block_map(form_blocks(func["instrs"]))
         cfg.add_terminators(blocks)
+
+        # Reaching definitions and available expressions analysis
+        if analysis_name == "rdefs":
+            analysis = create_reaching_defs_analysis(blocks)
+        else:
+            analysis = ANALYSES[analysis_name]
 
         in_, out = df_worklist(blocks, analysis)
         for block in blocks:
@@ -133,6 +139,78 @@ def cprop_merge(vals_list):
     return out_vals
 
 
+def collect_all_defs_by_var(blocks):
+    """
+    Gather every definition site in the function, grouped by variable.
+    Each def site is identified as 'var@blockName.idx'.
+    """
+    defs_by_var = {}
+    for bname, block in blocks.items():
+        for idx, instr in enumerate(block):
+            if "dest" in instr:
+                var = instr["dest"]
+                def_id = f"{var}@{bname}.{idx}"
+                defs_by_var.setdefault(var, set()).add(def_id)
+    return defs_by_var
+
+def gen_last_defs_for_block(bname, block):
+    """
+    GEN[b]: the set of definitions in block b that reach the END of b.
+    That is, the **last** definition per variable in this block.
+    """
+    seen = set()         # variables we've already recorded (walking backwards)
+    gen_b = set()
+    for idx in range(len(block) - 1, -1, -1):
+        instr = block[idx]
+        if "dest" in instr:
+            v = instr["dest"]
+            if v not in seen:
+                seen.add(v)
+                gen_b.add(f"{v}@{bname}.{idx}")
+    return gen_b
+
+def kill_for_block(gen_b, defs_by_var):
+    """
+    KILL[b]: for variables defined in this block, kill **all other defs**
+    of those variables (i.e., every def site except the ones in GEN[b]).
+    """
+    vars_defined = {d.split("@")[0] for d in gen_b}
+    kill_b = set()
+    for v in vars_defined:
+        kill_b |= (defs_by_var.get(v, set()) - {d for d in gen_b if d.startswith(v + "@")})
+    return kill_b
+
+def build_rdefs(blocks):
+    """
+    Build per-block GEN/KILL maps (keyed by id(block)) for reaching definitions.
+    Uses last-def-per-var GEN so GEN truly represents what reaches block end.
+    """
+    defs_by_var = collect_all_defs_by_var(blocks)
+
+    gen_map = {}
+    kill_map = {}
+
+    for bname, block in blocks.items():
+        bid = id(block)
+        gen_b  = gen_last_defs_for_block(bname, block)
+        kill_b = kill_for_block(gen_b, defs_by_var)
+
+        gen_map[bid]  = gen_b
+        kill_map[bid] = kill_b
+
+    return gen_map, kill_map
+
+def create_reaching_defs_analysis(blocks):
+    """Create reaching definitions analysis"""
+    gen_map, kill_map = build_rdefs(blocks)
+
+    return Analysis(
+        forward=True,
+        init=set(),
+        merge=union,
+        transfer=lambda block, in_defs: (in_defs - kill_map[id(block)]) | gen_map[id(block)]
+    )
+
 ANALYSES = {
     # A really really basic analysis that just accumulates all the
     # currently-defined variables.
@@ -161,4 +239,4 @@ ANALYSES = {
 
 if __name__ == "__main__":
     bril = json.load(sys.stdin)
-    run_df(bril, ANALYSES[sys.argv[1]])
+    run_df(bril, sys.argv[1])
