@@ -26,7 +26,7 @@ def df_worklist(blocks, analysis):
     """
     preds, succs = cfg.edges(blocks)
 
-    # Switch between directions.
+    # Direction setup
     if analysis.forward:
         first_block = list(blocks.keys())[0]  # Entry.
         in_edges = preds
@@ -36,24 +36,43 @@ def df_worklist(blocks, analysis):
         in_edges = succs
         out_edges = preds
 
-    # Initialize.
-    in_ = {first_block: analysis.init}
-    out = {node: analysis.init for node in blocks}
+    # compute reachable nodes in the chosen direction 
+    from collections import deque
 
-    # Iterate.
-    worklist = list(blocks.keys())
+    reachable = set()
+    dq = deque([first_block])
+    while dq:
+        n = dq.popleft()
+        if n in reachable:
+            continue
+        reachable.add(n)
+        for m in out_edges[n]:
+            if m not in reachable:
+                dq.append(m)
+
+    # Initialize only for reachable nodes
+    in_ = {first_block: analysis.init}
+    out = {node: analysis.init for node in reachable}
+
+    # Worklist over reachable nodes only
+    worklist = list(reachable)
     while worklist:
         node = worklist.pop(0)
 
-        inval = analysis.merge(out[n] for n in in_edges[node])
+        # Merge only from reachable predecessors
+        inval = analysis.merge(out[n] for n in in_edges[node] if n in reachable)
         in_[node] = inval
 
         outval = analysis.transfer(blocks[node], inval)
 
         if outval != out[node]:
             out[node] = outval
-            worklist += out_edges[node]
+            # Enqueue only reachable successors
+            for m in out_edges[node]:
+                if m in reachable:
+                    worklist.append(m)
 
+    # Return in/out only for reachable nodes
     if analysis.forward:
         return in_, out
     else:
@@ -91,9 +110,18 @@ def run_df(bril, analysis_name):
             analysis = ANALYSES[analysis_name]
 
         in_, out = df_worklist(blocks, analysis)
+
+        # Union of keys just in case; out usually suffices
+        reachable_keys = set(out.keys()) | set(in_.keys())
+
         for block in blocks:
-            print("{}:".format(block))
-            print("  in: ", fmt(in_[block]))
+            print(f"{block}:")
+            if block not in reachable_keys:
+                # mark unreachable
+                print("  in:  ∅  (unreachable)")
+                print("  out: ∅  (unreachable)")
+                continue
+            print("  in: ", fmt(in_.get(block, analysis.init)))
             print("  out:", fmt(out[block]))
 
 
