@@ -106,6 +106,8 @@ def run_df(bril, analysis_name):
         # Reaching definitions and available expressions analysis
         if analysis_name == "rdefs":
             analysis = create_reaching_defs_analysis(blocks)
+        # elif analysis_name == "available":
+        #     analysis = create_availible_exps_analysis(blocks)
         else:
             analysis = ANALYSES[analysis_name]
 
@@ -183,36 +185,40 @@ def collect_all_defs_by_var(blocks):
 
 def gen_last_defs_for_block(bname, block):
     """
-    GEN[b]: the set of definitions in block b that reach the END of b.
-    That is, the **last** definition per variable in this block.
+    GEN[b]: the set of last defs per var in block.
+    Scan backwards so only final def of eeach var is kept.
     """
-    seen = set()         # variables we've already recorded (walking backwards)
+    seen = set()         # variables already seen
     gen_b = set()
-    for idx in range(len(block) - 1, -1, -1):
+    for idx in range(len(block) - 1, -1, -1):   # backward scan
         instr = block[idx]
         if "dest" in instr:
             v = instr["dest"]
-            if v not in seen:
+            if v not in seen:   # keep only the last def of v
                 seen.add(v)
                 gen_b.add(f"{v}@{bname}.{idx}")
     return gen_b
 
 def kill_for_block(gen_b, defs_by_var):
     """
-    KILL[b]: for variables defined in this block, kill **all other defs**
-    of those variables (i.e., every def site except the ones in GEN[b]).
+    KILL[b]: all other defs of the vars defined in this block
+    For each var in GEN[b], kill every other def of that var in the function.
     """
+    # Extract vars defined in the blocks GEN set
     vars_defined = {d.split("@")[0] for d in gen_b}
     kill_b = set()
     for v in vars_defined:
+        # All defs of var v minus the ones in GEN[b]
         kill_b |= (defs_by_var.get(v, set()) - {d for d in gen_b if d.startswith(v + "@")})
     return kill_b
 
 def build_rdefs(blocks):
     """
-    Build per-block GEN/KILL maps (keyed by id(block)) for reaching definitions.
-    Uses last-def-per-var GEN so GEN truly represents what reaches block end.
+    Build GEN/KILL maps for each block, keyed by id(block).
+    - GEN[b] = last defs per var in b
+    - KILL[b] = all other defs of those vars
     """
+    # Map each var to def in function
     defs_by_var = collect_all_defs_by_var(blocks)
 
     gen_map = {}
