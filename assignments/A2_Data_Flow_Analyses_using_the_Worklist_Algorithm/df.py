@@ -248,6 +248,7 @@ def create_reaching_defs_analysis(blocks):
 # Operations that are communtative
 COMMUTATIVE_OPS = {"add", "mul", "and", "or", "ep" }
 
+# AI recommended and helped with making cononical expression for easier reading
 def expr_key(instr):
     """Convert an instruction into a canonical expression string"""
     op = instr.get("op")
@@ -274,26 +275,32 @@ def collect_all_expressions(blocks):
                 universe.add(expr)
     return universe
 
-
+# AI helped generate this function because of output not being correct
 def gen_expressions_for_block(block):
     """
     GEN[b] = expressions computed in b that are available at exit.
-    We scan backwards so that later redefinitions kill earlier exprs.
+    Backward scan: check the expression first (against defs_after),
+    then record the current definition into defs_after.
     """
     gen_b = set()
-    defs_after = set()  # variables defined later in the block
+    defs_after = set()
+
     for instr in reversed(block):
-        if "dest" in instr:
-            defs_after.add(instr["dest"])  # this var is defined later
+        # 1) If this instruction computes an expression, consider adding it
         k = expr_key(instr)
         if k:
-            # Extract operands from expr string "op(a,b,...)"
+            # Extract operands "op(a,b,...)"
             start = k.find("(") + 1
             end = k.rfind(")")
             vars_in_expr = set(k[start:end].split(",")) if end > start else set()
-            # Only include if none of its operands are redefined later
+            # Keep only if none of its operands are redefined later in the block
             if not (vars_in_expr & defs_after):
                 gen_b.add(k)
+
+        # 2) Now, after handling the expression, record any definition it makes
+        if "dest" in instr:
+            defs_after.add(instr["dest"])
+
     return gen_b
 
 
