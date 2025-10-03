@@ -106,8 +106,8 @@ def run_df(bril, analysis_name):
         # Reaching definitions and available expressions analysis
         if analysis_name == "rdefs":
             analysis = create_reaching_defs_analysis(blocks)
-        # elif analysis_name == "available":
-        #     analysis = create_availible_exps_analysis(blocks)
+        elif analysis_name == "available":
+            analysis = create_available_exps_analysis(blocks)
         else:
             analysis = ANALYSES[analysis_name]
 
@@ -244,6 +244,115 @@ def create_reaching_defs_analysis(blocks):
         merge=union,
         transfer=lambda block, in_defs: (in_defs - kill_map[id(block)]) | gen_map[id(block)]
     )
+
+# Operations that are communtative
+COMMUTATIVE_OPS = {"add", "mul", "and", "or", "ep" }
+
+def expr_key(instr):
+    """Convert an instruction into a canonical expression string"""
+    op = instr.get("op")
+    if not op or op == "const" or op == "print" or op == "br":     # skip constants and non-exprs
+        return None
+    args = instr.get("args", [])
+    if not args:
+        return None
+    # For communtative ops, sort arguments to match (e.g. "a+b" and "b+a" match)
+    if op in COMMUTATIVE_OPS:
+        key_args = ",".join(sorted(args))
+    else:
+        key_args = ",".join(args)
+    return f"{op}({key_args})"
+
+def collect_all_expressions(blocks):
+    """Universe U = all expressions in the function."""
+    universe = set()
+    # Scan every instruction in every block
+    for block in blocks.values():
+        for instr in block:
+            expr = expr_key(instr)
+            if expr:                 # Only expressions count (skip const, jmp, ret, etc.)
+                universe.add(expr)
+    return universe
+
+
+def gen_expressions_for_block(block):
+    """
+    GEN[b] = expressions computed in b that are available at exit.
+    We scan backwards so that later redefinitions kill earlier exprs.
+    """
+    gen_b = set()
+    defs_after = set()  # variables defined later in the block
+    for instr in reversed(block):
+        if "dest" in instr:
+            defs_after.add(instr["dest"])  # this var is defined later
+        k = expr_key(instr)
+        if k:
+            # Extract operands from expr string "op(a,b,...)"
+            start = k.find("(") + 1
+            end = k.rfind(")")
+            vars_in_expr = set(k[start:end].split(",")) if end > start else set()
+            # Only include if none of its operands are redefined later
+            if not (vars_in_expr & defs_after):
+                gen_b.add(k)
+    return gen_b
+
+
+def kill_expressions_for_block(block, universe):
+    """KILL[b] = all exprs in U that mention a var defined in b."""
+    defs = {instr["dest"] for instr in block if "dest" in instr}
+    killed = set()
+    if defs:
+        for expr in universe:
+            # Pull out variables used in this expression
+            inside = expr[expr.find("(")+1:expr.rfind(")")]
+            vars_in_expr = set(inside.split(",")) if inside else set()
+            # If this block defines any of them, the expr is killed
+            if vars_in_expr & defs:
+                killed.add(expr)
+    return killed
+    
+
+def build_available_expressions(blocks):
+    """Build GEN/KILL maps and universe for available expressions"""
+    u = collect_all_expressions(blocks)
+    gen_map = {}
+    kill_map = {}
+    for bname, block in blocks.items():
+        bid = id(block)
+        gen_map[bid] = gen_expressions_for_block(block)
+        kill_map[bid] = kill_expressions_for_block(block, u)
+    return u, gen_map, kill_map
+
+def merge_intersection(u):
+    """
+    Meet operator for AE:
+    - If no preds (entry), assume Universe (all exprs available).
+    - Otherwise intersect incoming sets.
+    """
+    def intersection(iter_vals):
+        vals = list(iter_vals)
+        if not vals:
+            return set(u)   # If no entry assume all
+        result = set(u)
+        for v in vals:
+            result &= v     # Intersect across predecessors
+        return result
+    return intersection
+
+def create_available_exps_analysis(blocks):
+    """Construct available expressions analysis"""
+    universe, gen_map, kill_map = build_available_expressions(blocks)
+    merge_fn = merge_intersection(universe)
+
+    return Analysis(
+        forward=True,
+        init=set(universe),
+        merge=merge_fn,
+        transfer=lambda block, in_exprs:
+            # OUT[b] = (IN[b] − KILL[b]) ∪ GEN[b]
+            (in_exprs - kill_map[id(block)]) | gen_map[id(block)]
+    )
+
 
 ANALYSES = {
     # A really really basic analysis that just accumulates all the
