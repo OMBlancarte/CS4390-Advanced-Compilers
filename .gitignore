@@ -26,3 +26,6 @@ Thumbs.db
 
 # Project-specific ignores
 bril/
+
+# Ignore llvm-tutor build artifacts
+assignments/A3_LLVM_Assignment_1/llvm-tutor/build*
