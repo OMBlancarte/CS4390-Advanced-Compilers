@@ -44,7 +44,75 @@ struct SimpleLICM : public PassInfoMixin<SimpleLICM> {
 
     // Worklist algorithm to identify loop invariant instructions
     /*************************************/
-    /* Your code goes here */
+    
+    // Keep iterating until no new invariant instructions are found
+    while (Change) {
+      Change = false;
+      
+      // Iterate through all basic blocks in the loop
+      for (BasicBlock *BB : L.blocks()) {
+        // Iterate through all instructions in the basic block
+        for (Instruction &I : *BB) {
+          // Skip if already marked as invariant
+          if (InvariantSet.count(&I))
+            continue;
+          
+          // Skip terminators
+          if (I.isTerminator()) 
+            continue;
+
+          // Skip memory operations (loads, stores, etc.)
+          if (I.mayReadOrWriteMemory())
+            continue;
+          
+          // Skip phi instructions
+          if (isa<PHINode>(I))
+            continue;
+          
+          // Check if all operands are loop invariant
+          bool AllOperandsInvariant = true;
+          for (Use &U : I.operands()) {
+            Value *Operand = U.get();
+            
+            // Constants are always loop invariant
+            if (isa<Constant>(Operand))
+              continue;
+            
+            // If operand is an instruction
+            if (Instruction *OpInst = dyn_cast<Instruction>(Operand)) {
+              // Check if it's defined outside the loop
+              if (!L.contains(OpInst->getParent())) {
+                continue; // Loop invariant (defined outside)
+              }
+              // Check if it's already in our invariant set
+              else if (InvariantSet.count(OpInst)) {
+                continue; // Loop invariant (previously identified)
+              }
+              else {
+                // Operand is not loop invariant
+                AllOperandsInvariant = false;
+                break;
+              }
+            }
+            // If operand is an argument, it's loop invariant
+            else if (isa<Argument>(Operand)) {
+              continue;
+            }
+            // Unknown operand type
+            else {
+              AllOperandsInvariant = false;
+              break;
+            }
+          }
+          
+          // If all operands are loop invariant, mark this instruction as invariant
+          if (AllOperandsInvariant) {
+            InvariantSet.insert(&I);
+            Change = true; // We found a new invariant instruction
+          }
+        }
+      }
+    }
     /*************************************/ 
 
     // Actually hoist the instructions
