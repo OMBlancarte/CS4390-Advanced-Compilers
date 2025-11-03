@@ -18,6 +18,7 @@ set(LLVM_TUTOR_PLUGINS
     AffineRecurrence
     DerivedInductionVar
     ExtendedDerivedIV
+    InductionVarElimination
     )
 
 set(StaticCallCounter_SOURCES
@@ -54,6 +55,8 @@ set(DerivedInductionVar_SOURCES
   DerivedInductionVar.cpp)
 set(ExtendedDerivedIV_SOURCES
   ExtendedDerivedIV.cpp)
+set(InductionVarElimination_SOURCES
+  InductionVarElimination.cpp)
 
 # CONFIGURE THE PLUGIN LIBRARIES
 # ==============================
