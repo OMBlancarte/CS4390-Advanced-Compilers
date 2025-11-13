@@ -1,0 +1,51 @@
+digraph MemorySSA_branch_example {
+  rankdir=TB;
+  node [shape=box, fontname="Courier"];
+  edge [fontname="Courier", fontsize=10];
+
+  title [label="MemorySSA for branch_example", shape=plaintext, fontsize=16, fontname="Arial Bold"];
+
+  subgraph cluster_entry {
+    label="BasicBlock: entry";
+    style=filled;
+    color=lightgrey;
+    node [style=filled, color=white];
+
+    MA_0x61033c251300 [label="MemoryDef\n  store i32 1, ptr %p, align 4", color=red, style=filled, fillcolor=lightyellow];
+    MA_0x61033c251260 -> MA_0x61033c251300 [label="defines", color=red, style=bold];
+  }
+
+  subgraph cluster_if {
+    label="BasicBlock: if";
+    style=filled;
+    color=lightgrey;
+    node [style=filled, color=white];
+
+    MA_0x61033c251bc0 [label="MemoryDef\n  store i32 2, ptr %p, align 4", color=red, style=filled, fillcolor=lightyellow];
+    MA_0x61033c251300 -> MA_0x61033c251bc0 [label="defines", color=red, style=bold];
+  }
+
+  subgraph cluster_else {
+    label="BasicBlock: else";
+    style=filled;
+    color=lightgrey;
+    node [style=filled, color=white];
+
+    MA_0x61033c251ca0 [label="MemoryDef\n  store i32 3, ptr %p, align 4", color=red, style=filled, fillcolor=lightyellow];
+    MA_0x61033c251300 -> MA_0x61033c251ca0 [label="defines", color=red, style=bold];
+  }
+
+  subgraph cluster_exit {
+    label="BasicBlock: exit";
+    style=filled;
+    color=lightgrey;
+    node [style=filled, color=white];
+
+    MA_0x61033c251de8 [label="MemoryPhi\nexit", shape=diamond, color=blue, style=filled, fillcolor=lightblue];
+    MA_0x61033c251bc0 -> MA_0x61033c251de8 [label="from if", color=blue];
+    MA_0x61033c251ca0 -> MA_0x61033c251de8 [label="from else", color=blue];
+    MA_0x61033c251d60 [label="MemoryUse\n  %v = load i32, ptr %p, align 4", color=green, style=filled, fillcolor=lightgreen];
+    MA_0x61033c251de8 -> MA_0x61033c251d60 [label="used by", color=green, style=dashed];
+  }
+
+}

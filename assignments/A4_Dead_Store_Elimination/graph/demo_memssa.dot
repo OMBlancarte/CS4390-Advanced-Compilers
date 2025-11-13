@@ -1,0 +1,20 @@
+digraph MemorySSA_demo {
+  rankdir=TB;
+  node [shape=box, fontname="Courier"];
+  edge [fontname="Courier", fontsize=10];
+
+  title [label="MemorySSA for demo", shape=plaintext, fontsize=16, fontname="Arial Bold"];
+
+  subgraph cluster_entry {
+    label="BasicBlock: entry";
+    style=filled;
+    color=lightgrey;
+    node [style=filled, color=white];
+
+    MA_0x5dd1670acd20 [label="MemoryDef\n  store i32 1, ptr %0, align 4", color=red, style=filled, fillcolor=lightyellow];
+    MA_0x5dd1670acbe0 -> MA_0x5dd1670acd20 [label="defines", color=red, style=bold];
+    MA_0x5dd1670ae500 [label="MemoryDef\n  store i32 2, ptr %0, align 4", color=red, style=filled, fillcolor=lightyellow];
+    MA_0x5dd1670acd20 -> MA_0x5dd1670ae500 [label="defines", color=red, style=bold];
+  }
+
+}
